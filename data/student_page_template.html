@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<style>
+
+body{
+  padding-top:50px;
+  font-family: "Raleway", sans-serif;
+  text-align: center  
+}
+
+table{
+  padding-left:100px;
+  text-align: left;
+  margin:auto;
+}
+
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+</style>
+</head>
+<body>
+
+<h2>Avatar: <TMPL_VAR NAME=AVATAR> </h2>
+
+<h3>Your current tokens</h3>
+
+
+<table style="width:50%">
+  <tr> 
+    <th>Token ID</th>
+    <th>Status</th>
+    <th>Details</th>
+  </tr>  
+  <TMPL_LOOP NAME=CURRENT_TOKENS_ROWS>
+    <tr>
+      <td><a href = <TMPL_VAR NAME = APOLLO_LINK>><TMPL_VAR NAME=TOKEN></a></td>
+      <td><TMPL_VAR NAME=STATUS></td>
+      <td><TMPL_VAR NAME=DETAILS></td>
+    </tr>
+  </TMPL_LOOP>
+</table>
+
+<br>
+<br>
+<br>
+
+<h3>Your previous tokens</h3>
+
+<table style="width:50%">
+  <tr>
+    <th>Token ID</th>
+    <th>Date completed</th>
+    <th>Outcome</th>
+  </tr>
+  <TMPL_LOOP NAME=PAST_TOKENS_ROWS>
+    <tr>
+      <td><a href = <TMPL_VAR NAME = APOLLO_LINK >><TMPL_VAR NAME=TOKEN></a></td>
+      <td><TMPL_VAR NAME=DATE></td>
+      <td><TMPL_VAR NAME=OUTCOME></td>
+    </tr>
+  </TMPL_LOOP>
+</table>
+
+
+
+</body>
+</html>
