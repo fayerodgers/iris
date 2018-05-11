@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
 
 use warnings;
 use strict;
@@ -7,7 +7,7 @@ use POSIX qw(strftime);
 use Getopt::Long;
 use Apollo_fr;
 
-my ($users, $annotations_path, $apollo_pword, $mysql_pword);
+my ($users, $annotations_path, $apollo_pword, $mysql_pword, $data_path);
 my $date = strftime "%F", localtime;
 
 my $usage = "You need to provide the following options:\n
@@ -15,17 +15,19 @@ my $usage = "You need to provide the following options:\n
 	--annotations_path - the path to the directory where GFFs and FASTAs should be dumped.\n
 	--apollo_pword - the admin password to Apollo.\n
 	--mysql_pword - the password to the mysql server.\n 
+	--data_path - the path to the directory where data (evidence) files are saved.\n
 ";
 
 GetOptions(
         'user_list=s' => \$users,
 	'annotations_path=s' => \$annotations_path,
 	'apollo_pword=s' => \$apollo_pword,
-	'mysql_pword=s' => \$mysql_pword
+	'mysql_pword=s' => \$mysql_pword,
+	'data_path=s' => \$data_path
 ) or die "$usage";
 
-foreach my $option ($users, $annotations_path, $apollo_pword, $mysql_pword){ 
-	unless (defined $option){ print $usage; die; }
+foreach my $option ($users, $annotations_path, $apollo_pword, $mysql_pword, $data_path){ 
+	unless (defined $option){ die "$usage"; }
 }
 
 my %all_users;
@@ -70,9 +72,9 @@ foreach my $user (keys %transcripts){
 my @users= keys %transcripts;
 $transcripts = dump_FASTAs(\@users,\%transcripts,$apollo_pword,$annotations_path,$date);
 %transcripts = %$transcripts;
-my $introns_bed_file = './data/TTRE_all_introns.bed';
-my $illumina_coverage_file = './data/coverage_blocks.bg';
-my $isoseq_coverage_file = './data/isoseq_coverage_blocks.bg';
+my $introns_bed_file = $data_path.'/TTRE_all_introns.bed';
+my $illumina_coverage_file = $data_path.'/coverage_blocks.bg';
+my $isoseq_coverage_file = $data_path.'/isoseq_coverage_blocks.bg';
 foreach my $user (keys %transcripts){
         my $peptide_fasta = join "",$annotations_path,'/',$date,'/trichuris_trichiura_',$user,'.peptide.fasta';
         my $t = validate_intron_boundaries($transcripts{$user},$introns_bed_file);

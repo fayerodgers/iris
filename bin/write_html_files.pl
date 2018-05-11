@@ -1,5 +1,4 @@
-#!/usr/bin/env perl
-
+#!/usr/bin/perl
 
 use strict;
 use warnings;
@@ -9,37 +8,29 @@ use DBD::mysql;
 use HTML::Template;
 use POSIX qw(strftime);
 use Getopt::Long;
+use Apollo_fr;
 
-my ($annotations_path, $mysql_pword);
+my ($annotations_path, $mysql_pword, $data_path);
 
 my $usage = "You need to provide the following options:\n
 	--annotations_path - the path to the directory where HTML files should be written.\n
 	--mysql_pword - the password to the mysql server.\n 
+	--data_path - the path to the directory where the HTML template file is saved.\n
 ";
 
 GetOptions(
 	'annotations_path=s' => \$annotations_path,
-	'mysql_pword=s' => \$mysql_pword
+	'mysql_pword=s' => \$mysql_pword,
+	'data_path=s' => \$data_path
 ) or die "$usage";
 
 foreach my $option ($annotations_path, $mysql_pword){ 
 	unless (defined $option){ print $usage; die; }
 }
 
-
-my $database = 'iris_tokens';
-my $host = 'mysql-wormbase-pipelines';
-my $port = '4331';
-my $userid = 'wormadmin';
-my %current_tokens;
-my %past_tokens;
-my %tests;
-my %events;
+my (%current_tokens, %past_tokens, %tests, %events);
 my $date = strftime "%F", localtime;
-
-my $dsn = "dbi:mysql:dbname=$database;host=$host;port=$port;";
-my $dbh = DBI->connect($dsn, $userid, $mysql_pword);
-
+my $dbh = connect_to_iris_database('iris_tokens',$mysql_pword);
 unless (-d $annotations_path.'/'.$date.'/html'){ system (mkdir $annotations_path.'/'.$date.'/html');}
 
 my $sth_get_token_info=$dbh->prepare('SELECT students.avatar,allocated_tokens.event_id, allocated_tokens.token_id, allocated_tokens.date_returned, allocated_tokens.outcome, allocated_tokens.previous_event_id,tokens.scaffold, tokens.start_coord, tokens.end_coord FROM students LEFT OUTER JOIN allocated_tokens ON students.avatar=allocated_tokens.avatar LEFT OUTER JOIN tokens ON allocated_tokens.token_id=tokens.token_id');
@@ -123,7 +114,7 @@ sub sth_get_token_info{
 sub write_html{
 	foreach my $avatar (keys %current_tokens){
 		open FH, '>', $annotations_path.'/'.$date.'/html/'.$avatar.'.html';
-		my $template = HTML::Template->new(filename => './data/student_page_template.html');
+		my $template = HTML::Template->new(filename => $data_path.'/student_page_template.html');
 		$template->param(
 			CURRENT_TOKENS_ROWS => \@{$current_tokens{$avatar}},
 			PAST_TOKENS_ROWS => \@{$past_tokens{$avatar}},
