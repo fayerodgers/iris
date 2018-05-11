@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+MODULEPATH=/nfs/panda/ensemblgenomes/wormbase/modulefiles
+module load apollo
 
 USAGE="You need to provide the following arguments:
 -u - a file of user IDs to process (in the format avatar@apollo).

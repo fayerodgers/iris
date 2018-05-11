@@ -3,7 +3,7 @@ package Apollo_fr;
 use warnings;
 use strict;
 use base 'Exporter';
-our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature);
+our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens);
 use Data::Dumper;
 use DBI;
 use DBD::mysql;
@@ -360,6 +360,16 @@ sub retrieve_all_users_from_db{
 	return \%users;
 }
 
+#####################################
+sub add_users_to_iris_tokens{
+	my ($users, $date, $dbh) = @_;
+	my %users = %$users;
+	my $sth = $dbh->prepare('INSERT INTO students (avatar, school, date_last_checked) values (?,?,?)');
+	foreach my $user (keys %users){
+		$sth->execute($user,$users{$user}{'school'},$date);
+	}
+}
+
 ######################################
 sub retrieve_token_data{
 	my $dbh = shift;
@@ -561,7 +571,6 @@ sub allocate_tokens{
                         	$sth_allocate_tokens->execute($token, $student, $date);
                                 $school_tokens{$school}{$token}++;
                                 $tokens{$token}++;		
-				$users{$student}{'current_tokens'}{$token} = ();		
 				$users{$student}{'current_tokens'}{$token} = ();		
 				$users{$student}{'all_tokens'}{$token} = (); 
                                 if ($tokens{$token} >= 10){
