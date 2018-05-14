@@ -55,8 +55,10 @@ while(<USERS>){
 #dump GFFs
 foreach my $user (keys %all_users){
 	my $organism = join "",'trichuris_trichiura_', $user;
-	apollo_dump($organism,$apollo_pword,'gff',$annotations_path,$date);
-	sleep(5);
+	unless (-f $annotations_path.'/'.$organism.'.gff'){
+		apollo_dump($organism,$apollo_pword,'gff',$annotations_path,$date);
+		sleep(5);
+	}
 }
 
 #parse GFFs
