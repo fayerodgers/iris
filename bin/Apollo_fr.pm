@@ -3,7 +3,7 @@ package Apollo_fr;
 use warnings;
 use strict;
 use base 'Exporter';
-our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens);
+our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens retrieve_genes);
 use Data::Dumper;
 use DBI;
 use DBD::mysql;
@@ -404,6 +404,27 @@ sub retrieve_collapsed_transcripts{
 		$collapsed_transcripts{$collapsed_id}{'strand'} = $db_transcripts[8];
 	}
 	return \%collapsed_transcripts;
+}
+
+##########################################
+sub retrieve_genes{
+	my $dbh = shift;
+	my %genes;
+	my $sth_all_genes = $dbh->prepare('SELECT DISTINCT parent_gene FROM combined_ids');
+	$sth_all_genes->execute();
+	my $sth = $dbh->prepare('SELECT combined_ids.collapsed_id, combined_ids.strand, combined_ids.scaffold, MIN(combined_exons.start_exon), MAX(combined_exons.stop_exon) FROM combined_ids LEFT JOIN combined_exons ON combined_ids.collapsed_id = combined_exons.collapsed_id WHERE combined_ids.parent_gene = ?');
+	while (my @db_genes = $sth_all_genes->fetchrow_array){
+		my $gene = $db_genes[0];
+		$sth->execute($gene);
+		while (my @db_gene_data = $sth->fetchrow_array){
+			push @{$genes{$gene}{'transcripts'}}, $db_gene_data[0];
+			$genes{$gene}{'strand'} = $db_gene_data[1];
+			$genes{$gene}{'scaffold'} = $db_gene_data[2];
+			$genes{$gene}{'start'} = $db_gene_data[3];
+			$genes{$gene}{'end'} = $db_gene_data[4];
+		}
+	}
+	return \%genes;
 }
 
 
