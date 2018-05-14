@@ -4,14 +4,26 @@ use strict;
 use Data::Dumper;
 use Apollo_fr;
 use List::Util;
+use Getopt::Long;
 
-open COVERAGE, '>', 'coverage.txt';
-open SCHOOLS, '>', 'schools.txt';
-open STUDENTS, '>', 'students.txt';
+my ($mysql_pword, $output_dir);
+my $usage = "You need to provide --mysql_pword and --output_directory \n";
+GetOptions(
+	'mysql_pword=s' => \$mysql_pword,
+	'output_directory=s' => \$output_dir
+) or die "$usage";
+
+foreach my $argument ($mysql_pword, $output_dir){
+	unless (defined $argument) {die "$usage"; }
+}
+
+open COVERAGE, '>', $output_dir.'/coverage.txt';
+open SCHOOLS, '>', $output_dir.'/schools.txt';
+open STUDENTS, '>', $output_dir.'/students.txt';
 
 #connect to the database
-my $dbh_genes = connect_to_iris_database('iris_genes');
-my $dbh_tokens = connect_to_iris_database('iris_tokens');
+my $dbh_genes = connect_to_iris_database('iris_genes', $mysql_pword);
+my $dbh_tokens = connect_to_iris_database('iris_tokens', $mysql_pword);
 
 #retrieve collapsed transcripts
 my $collapsed_transcripts = retrieve_collapsed_transcripts($dbh_genes);
