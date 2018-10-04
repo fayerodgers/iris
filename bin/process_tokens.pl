@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings;
 use strict;
@@ -7,6 +7,8 @@ use DBI;
 use DBD::mysql;
 use POSIX qw(strftime);
 use Getopt::Long;
+use FindBin qw($Bin);
+use lib "$Bin";
 use Apollo_fr;
 
 my ($users, $annotations_path, $apollo_pword, $mysql_pword, $data_path);
@@ -55,7 +57,7 @@ while(<USERS>){
 #dump GFFs
 foreach my $user (keys %all_users){
 	my $organism = join "",'trichuris_trichiura_', $user;
-	unless (-f $annotations_path.'/'.$organism.'.gff'){
+	unless (-f $annotations_path.'/'.$date.'/'.$organism.'.gff'){
 		apollo_dump($organism,$apollo_pword,'gff',$annotations_path,$date);
 		sleep(5);
 	}

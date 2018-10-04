@@ -33,7 +33,7 @@ my ($sth_allocate_tokens, $sth_reallocate_tokens, $sth_get_allocated_tokens, $st
 
 while (<USERS>){
 	chomp;
-	if (/((.+)_.+)\@apollo/){
+	if (/((.+)_.+)/){
 		my $avatar = $1;
 		my $school = $2;
 		$users{$avatar}{'school'} = $school;	

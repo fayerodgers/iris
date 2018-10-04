@@ -1,10 +1,12 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings;
 use strict;
 use Data::Dumper;
 use POSIX qw(strftime);
 use Getopt::Long;
+use FindBin qw($Bin);
+use lib "$Bin";
 use Apollo_fr;
 
 my ($users, $annotations_path, $apollo_pword, $mysql_pword, $data_path);
@@ -62,8 +64,8 @@ foreach my $user (keys %transcripts){
 	foreach my $transcript (keys %{$transcripts{$user}}){
 		if (exists $validated_transcripts->{$transcript}){ 
 			delete $transcripts{$user}{$transcript};
-			if (scalar keys %{$transcripts{$user}} == 0){ delete $transcripts{$user}; }
 		 }
+	if (scalar keys %{$transcripts{$user}} == 0){ delete $transcripts{$user}; }
 	}
 }
 

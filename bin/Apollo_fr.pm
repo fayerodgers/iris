@@ -3,7 +3,7 @@ package Apollo_fr;
 use warnings;
 use strict;
 use base 'Exporter';
-our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens retrieve_genes);
+our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens retrieve_genes delete_all_features);
 use Data::Dumper;
 use DBI;
 use DBD::mysql;
@@ -213,12 +213,14 @@ sub validate_cds{
 	foreach my $transcript (keys %cds){
 		my $stop = substr $cds{$transcript}, -3;
 		next unless exists $transcripts{$transcript};
+		print "\n$transcript\t$stop\t";
 		if ($stop eq 'TAA' || $stop eq 'TGA' || $stop eq 'TAG'){
 			$transcripts{$transcript}{'S'} = 'valid';
 			if (length $cds{$transcript} < 3){
 				delete $transcripts{$transcript}{'cds'};
 			}
 		}
+		#print Dumper \%transcripts;
 		elsif (length $cds{$transcript} < 6){
 			delete $transcripts{$transcript}{'cds'};
 		}
@@ -229,6 +231,7 @@ sub validate_cds{
 #####################################
 sub validate_peptide{
 	my ($transcripts, $peptide_fasta) = @_;
+	print "$peptide_fasta\n";
 	open PEPTIDE_FASTA, '<', $peptide_fasta or die "can't open $peptide_fasta\n";
 	my %transcripts = %$transcripts;
 	my (%peptide, $transcript);
@@ -241,6 +244,7 @@ sub validate_peptide{
 			$peptide{$transcript} .= $_;
 		}
 	}
+	print Dumper \%peptide;
 	foreach my $transcript (keys %peptide){
 		if ($peptide{$transcript} =~ /^M/){
 			$transcripts{$transcript}{'ST'} = 'valid';
@@ -630,7 +634,7 @@ sub allocate_tokens{
 ###########################################
 sub apollo_dump{
 	my ($organism, $apollo_pword, $type, $path, $date) = @_;
-	my %options = ('timeout' => 1000);
+	my %options = ('timeout' => 10000);
 	my $http = HTTP::Tiny->new(%options);
 	my $server = 'http://wp-p2m-80.ebi.ac.uk:8080/IOService/write';
 	my $username = 'irisadmin@local.host';
@@ -643,6 +647,7 @@ sub apollo_dump{
         	headers => {'Content-type' => 'application/json'},
        		content => $content
 	});
+#	print Dumper \$response, "\n";
 	die "Apollo dump failed" unless $response->{'success'};
 	print STDERR "Success\n";
 	open FH, '>', $path.'/'.$date.'/'.$organism.'.'.$type;
@@ -659,7 +664,22 @@ sub delete_feature{
                 headers => {'Content-type' => 'application/json'},
                 content => "{'username' : ".$username.", 'password' : ".$apollo_pword.",'features' : [{'uniquename' :".$feature." }], 'organism' : ".$organism."}"
         });
+	print Dumper \$response;
 	die "Deletion failed" unless $response->{'success'};
 }
 
 ####################################################
+sub delete_all_features{
+	my ($organism, $apollo_pword) = @_;
+	my %options = ('timeout' => 10000);
+	my $http = HTTP::Tiny->new(%options);
+	my $username = 'irisadmin@local.host';
+	my $server = 'http://wp-p2m-80.ebi.ac.uk:8080/organism/deleteOrganismFeatures';
+	my $response = $http->request('POST',$server,{
+		headers => {'Content-type' => 'application/json'},
+		content => "{'username': ".$username.", 'password': ".$apollo_pword." , 'organism' : ".$organism."}"
+	});
+	print Dumper \$response;
+	die "Failed!\n" unless $response->{success};
+}
+

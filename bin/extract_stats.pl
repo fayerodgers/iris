@@ -2,9 +2,11 @@
 use warnings;
 use strict;
 use Data::Dumper;
-use Apollo_fr;
 use List::Util;
 use Getopt::Long;
+use FindBin qw($Bin);
+use lib "$Bin";
+use Apollo_fr;
 
 my ($mysql_pword, $output_dir);
 my $usage = "You need to provide --mysql_pword and --output_directory \n";

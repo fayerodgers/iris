@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
@@ -8,6 +8,8 @@ use DBD::mysql;
 use HTML::Template;
 use POSIX qw(strftime);
 use Getopt::Long;
+use FindBin qw($Bin);
+use lib "$Bin";
 use Apollo_fr;
 
 my ($annotations_path, $mysql_pword, $data_path);
