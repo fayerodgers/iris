@@ -8,6 +8,7 @@ use Data::Dumper;
 use DBI;
 use DBD::mysql;
 use HTTP::Tiny;
+use List::Util qw(min max);
 
 
 #####################################
@@ -20,6 +21,7 @@ sub parse_gff{
 	open GFF ,'<', $gff or die "failed to open $gff";
 	my %gene_data;
 	while (<GFF>){
+		
 		if (/##gff-version 3/){ $valid = 1;}
     		my @temp = split /\t/, $_;
        		if (/repeat_region/){
@@ -86,12 +88,15 @@ sub parse_gff{
 				$rf = ($temp[4]-$temp[7])%3;
 			}
 			$transcripts{$user}{$unique_transcript_id}{'cds_frame'}{$temp[3]} = $rf;
-			unless ($temp[3] > $temp[4]){
-				$transcripts{$user}{$unique_transcript_id}{'cds'} = 'valid';
-			}
 		}
 	}
 	foreach my $unique_transcript_id (keys %{$transcripts{$user}}){
+		my $cds_start = min(keys %{$transcripts{$user}{$unique_transcript_id}{'cds_coords'}});
+		my $c = max(keys %{$transcripts{$user}{$unique_transcript_id}{'cds_coords'}});
+		my $cds_end = $transcripts{$user}{$unique_transcript_id}{'cds_coords'}{$c};
+		if ($cds_end - $cds_start >= 6){	#later need to delete genes with a backwards CDS or a CDS < 1 aa. Would break FASTA dumping.
+			$transcripts{$user}{$unique_transcript_id}{'cds'} = 'valid';
+		}
 		my $gene_id = $transcripts{$user}{$unique_transcript_id}{'parent'};
 		if (defined $gene_data{$gene_id}{'note'}){
 			$transcripts{$user}{$unique_transcript_id}{'note'} .= $gene_data{$gene_id}{'note'};
@@ -211,18 +216,12 @@ sub validate_cds{
 		}
 	}
 	foreach my $transcript (keys %cds){
+	#	print "$transcript\t";
 		my $stop = substr $cds{$transcript}, -3;
 		next unless exists $transcripts{$transcript};
-		print "\n$transcript\t$stop\t";
-		if ($stop eq 'TAA' || $stop eq 'TGA' || $stop eq 'TAG'){
+	#	print "$stop\n";
+		if (($stop eq 'TAA') || ($stop eq 'TGA') || ($stop eq 'TAG')){
 			$transcripts{$transcript}{'S'} = 'valid';
-			if (length $cds{$transcript} < 3){
-				delete $transcripts{$transcript}{'cds'};
-			}
-		}
-		#print Dumper \%transcripts;
-		elsif (length $cds{$transcript} < 6){
-			delete $transcripts{$transcript}{'cds'};
 		}
 	}	
 	return \%transcripts;
@@ -231,7 +230,7 @@ sub validate_cds{
 #####################################
 sub validate_peptide{
 	my ($transcripts, $peptide_fasta) = @_;
-	print "$peptide_fasta\n";
+	#print "$peptide_fasta\n";
 	open PEPTIDE_FASTA, '<', $peptide_fasta or die "can't open $peptide_fasta\n";
 	my %transcripts = %$transcripts;
 	my (%peptide, $transcript);
@@ -244,7 +243,7 @@ sub validate_peptide{
 			$peptide{$transcript} .= $_;
 		}
 	}
-	print Dumper \%peptide;
+	#print Dumper \%peptide;
 	foreach my $transcript (keys %peptide){
 		if ($peptide{$transcript} =~ /^M/){
 			$transcripts{$transcript}{'ST'} = 'valid';
@@ -280,7 +279,7 @@ sub dump_FASTAs{
 		next unless (exists $transcripts{$user});
 		foreach my $unique_transcript_id (keys %{$transcripts{$user}}){
 			unless (exists $transcripts{$user}{$unique_transcript_id}{'cds'}){ #'cds' exists if the cds is in the correct orientation in the gff (according to parse_gff)
-				print STDERR "Deleting $unique_transcript_id for user $user - invalid CDS 1\n";
+				print STDERR "Deleting $unique_transcript_id for user $user - invalid CDS \n";
 				delete_feature($organism,$unique_transcript_id,$apollo_pword);
 				sleep(5);
 				delete $transcripts{$user}{$unique_transcript_id};
@@ -290,23 +289,11 @@ sub dump_FASTAs{
      			apollo_dump($organism, $apollo_pword, 'cds.fasta', $annotations_path, $date);
 			sleep(5);
 		}
-        	my $cds_fasta = join "",$annotations_path,'/',$date,'/',$organism,'.cds.fasta';
-        	my $t = validate_cds($transcripts{$user}, $cds_fasta);
-		%{$transcripts{$user}} = %$t;
-		foreach my $unique_transcript_id (keys %{$transcripts{$user}}){
-			unless (exists $transcripts{$user}{$unique_transcript_id}{'cds'}){ #we have now also checked for peptides that are <1 aa in length.
-				print STDERR "Deleting $unique_transcript_id for user $user - invalid CDS 2\n";
-				delete_feature($organism,$unique_transcript_id,$apollo_pword);
-				sleep(5);
-				delete $transcripts{$user}{$unique_transcript_id};
-			}
-		}
-		unless (-f $annotations_path.'/'.$date.'/'.$organism.'.peptide.fasta'){
-			apollo_dump($organism, $apollo_pword, 'peptide.fasta', $annotations_path, $date);
-			sleep(5);
+                unless (-f $annotations_path.'/'.$date.'/'.$organism.'.peptide.fasta'){
+                        apollo_dump($organism, $apollo_pword, 'peptide.fasta', $annotations_path, $date);
+                        sleep(5);
 		}
 	}
-	return \%transcripts;
 }
 
 
@@ -652,6 +639,7 @@ sub apollo_dump{
 	print STDERR "Success\n";
 	open FH, '>', $path.'/'.$date.'/'.$organism.'.'.$type;
 	print FH $response-> {'content'};
+	close FH;
 }
 
 ################################################

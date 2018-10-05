@@ -72,15 +72,17 @@ foreach my $user (keys %transcripts){
 
 #Validate all transcripts
 my @users= keys %transcripts;
-$transcripts = dump_FASTAs(\@users,\%transcripts,$apollo_pword,$annotations_path,$date);
+dump_FASTAs(\@users,\%transcripts,$apollo_pword,$annotations_path,$date);
 %transcripts = %$transcripts;
 my $introns_bed_file = $data_path.'/TTRE_all_introns.bed';
 my $illumina_coverage_file = $data_path.'/coverage_blocks.bg';
 my $isoseq_coverage_file = $data_path.'/isoseq_coverage_blocks.bg';
 foreach my $user (keys %transcripts){
         my $peptide_fasta = join "",$annotations_path,'/',$date,'/trichuris_trichiura_',$user,'.peptide.fasta';
+	my $cds_fasta = join "",$annotations_path,'/',$date,'/','/trichuris_trichiura_',$user,'.cds.fasta';
         my $t = validate_intron_boundaries($transcripts{$user},$introns_bed_file);
         $t = validate_coverage($t, $illumina_coverage_file, $isoseq_coverage_file);
+	$t = validate_cds($t, $cds_fasta);
         $t = validate_peptide($t, $peptide_fasta);
         $transcripts{$user} = $t;
 }

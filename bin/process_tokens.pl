@@ -110,7 +110,10 @@ foreach my $user (keys %tokens){
 
 #dump CDS and peptide FASTAs for users with tokens to validate.
 my @users= keys %tokens;
-$transcripts = dump_FASTAs(\@users,\%transcripts,$apollo_pword,$annotations_path,$date);
+dump_FASTAs(\@users,\%transcripts,$apollo_pword,$annotations_path,$date);
+
+#print Dumper \$tokens;
+#print Dumper \$transcripts;
 
 #validate coverage, intron support and CDS.
 my $introns_bed_file = $data_path.'/TTRE_all_introns.bed';
@@ -119,8 +122,10 @@ my $isoseq_coverage_file = $data_path.'/isoseq_coverage_blocks.bg';
 foreach my $user (keys %tokens){ 
 	next unless (exists $transcripts{$user});
 	my $peptide_fasta = join "", $annotations_path, '/', $date, '/trichuris_trichiura_',$user,'.peptide.fasta';
+	my $cds_fasta = join "",$annotations_path,'/',$date,'/','/trichuris_trichiura_',$user,'.cds.fasta';
 	my $t = validate_intron_boundaries($transcripts{$user},$introns_bed_file);
 	$t = validate_coverage($t, $illumina_coverage_file, $isoseq_coverage_file);
+	$t = validate_cds($t, $cds_fasta);
 	$t = validate_peptide($t, $peptide_fasta);
 	$transcripts{$user} = $t;
 }
@@ -130,17 +135,18 @@ foreach my $user (keys %tokens){
 foreach my $user (keys %tokens){
         foreach my $unique_token_id (keys %{$tokens{$user}}){
 		foreach my $unique_transcript_id (keys %{$transcripts{$user}}){
-			if ($tokens{$user}->{$unique_token_id}->{'scaffold'} eq $transcripts{$user}->{$unique_transcript_id}->{'scaffold'}){
-				my $transcript_start = $transcripts{$user}{$unique_transcript_id}{'start'};
-				my $transcript_end = $transcripts{$user}{$unique_transcript_id}{'end'};
-				my $token_start = $tokens{$user}{$unique_token_id}{'start'};
-				my $token_end = $tokens{$user}{$unique_token_id}{'end'};
-				if ($transcript_start >= $token_start && $transcript_start <= $token_end){
-					$tokens{$user}{$unique_token_id}{'transcripts'}{$unique_transcript_id}=();		
-				}	
-				elsif ($transcript_end >= $token_start && $transcript_end <= $token_end){
-					 $tokens{$user}{$unique_token_id}{'transcripts'}{$unique_transcript_id}=();
-				}
+			unless ($tokens{$user}->{$unique_token_id}->{'scaffold'} eq $transcripts{$user}->{$unique_transcript_id}->{'scaffold'}){
+				next;
+			}
+			my $transcript_start = $transcripts{$user}{$unique_transcript_id}{'start'};
+			my $transcript_end = $transcripts{$user}{$unique_transcript_id}{'end'};
+			my $token_start = $tokens{$user}{$unique_token_id}{'start'};
+			my $token_end = $tokens{$user}{$unique_token_id}{'end'};
+			if ($transcript_start >= $token_start && $transcript_start <= $token_end){
+				$tokens{$user}{$unique_token_id}{'transcripts'}{$unique_transcript_id}=();		
+			}	
+			elsif ($transcript_end >= $token_start && $transcript_end <= $token_end){
+				 $tokens{$user}{$unique_token_id}{'transcripts'}{$unique_transcript_id}=();
 			}
 		}
 	}
