@@ -661,8 +661,8 @@ sub delete_all_features{
 	my ($organism, $apollo_pword) = @_;
 	my %options = ('timeout' => 10000);
 	my $http = HTTP::Tiny->new(%options);
-	my $username = 'irisadmin@local.host';
-	my $server = 'http://wp-p2m-80.ebi.ac.uk:8080/organism/deleteOrganismFeatures';
+	my $username = 'admin@local.host';
+	my $server = 'http://muffin.ve3w6jjywh.us-east-1.elasticbeanstalk.com/organism/deleteOrganismFeatures';
 	my $response = $http->request('POST',$server,{
 		headers => {'Content-type' => 'application/json'},
 		content => "{'username': ".$username.", 'password': ".$apollo_pword." , 'organism' : ".$organism."}"
