@@ -36,17 +36,17 @@ foreach my $gene (keys %{$genes}){
 		my $transcript_start = min (keys %{$collapsed_transcripts->{$transcript}{'exon_coords'}});
 		my $last_transcript = max (keys %{$collapsed_transcripts->{$transcript}{'exon_coords'}});
 		my $transcript_end = $collapsed_transcripts->{$transcript}{'exon_coords'}{$last_transcript};
-		print MASTER "$scaffold\tiris\tmRNA\t$transcript_start\t$transcript_end\t.\t$strand\t.\tID=$transcript;parent=TTRE$gene;\n";
+		print MASTER "$scaffold\tiris\tmRNA\t$transcript_start\t$transcript_end\t.\t$strand\t.\tID=$transcript;Parent=TTRE$gene;\n";
 		my $i = 1;
         	foreach my $exon (keys %{$collapsed_transcripts->{$transcript}{'exon_coords'}}){
                 	my $end_coord = $collapsed_transcripts->{$transcript}{'exon_coords'}{$exon};
-                	print MASTER "$scaffold\tiris\texon\t$exon\t$end_coord\t.\t$strand\t.\tID=$transcript.exon$i;parent=$transcript;\n";
+                	print MASTER "$scaffold\tiris\texon\t$exon\t$end_coord\t.\t$strand\t.\tID=$transcript.exon$i;Parent=$transcript;\n";
                 	$i++;
        		}
         	$i = 1;
         	foreach my $cds (keys %{$collapsed_transcripts->{$transcript}{'cds_coords'}}){
                 	my $end_coord = $collapsed_transcripts->{$transcript}{'cds_coords'}{$cds};
-                	print MASTER "$scaffold\tiris\tcds\t$cds\t$end_coord\t.\t$strand\t.\tID=$transcript.cds$i;parent=$transcript;\n";
+                	print MASTER "$scaffold\tiris\tcds\t$cds\t$end_coord\t.\t$strand\t.\tID=$transcript.cds$i;Parent=$transcript;\n";
                 	$i++;
         	}
 	}
