@@ -207,6 +207,6 @@ foreach my $user (keys %tokens){
 
 #reallocate tokens
 my $all_users= retrieve_all_users_from_db($dbh);
-my $all_tokens = retrieve_token_data($dbh);
-allocate_tokens($sth_allocate_tokens, $all_users, $all_tokens, $date);
+my $all_tokens = retrieve_token_data_v2($dbh);
+allocate_tokens_v2($sth_allocate_tokens, $all_users, $all_tokens, $date,'aggregate');
 
