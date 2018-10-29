@@ -649,14 +649,10 @@ sub allocate_tokens_v2{
 	elsif ($format eq 'iso'){
 		@tokens = sort { $tokens{'iso_score'}{$b} <=> $tokens{'iso_score'}{$a} } (keys %{$tokens{'iso_score'}});	
 	}
-	print join("\n",@tokens);
-	#print scalar(@tokens);
 	foreach my $student (keys %users){
 		while (scalar keys %{$users{$student}{'current_tokens'}} < 10){
-			print $student, "\n";
 			foreach my $i (0..scalar @tokens){
 				my $token  = $tokens[$i];
-				print $token, "\n";
 				if (exists $users{$student}{'all_tokens'}{$token}){
 					next;
 				}
