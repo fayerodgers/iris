@@ -1,0 +1,3 @@
+[submodule "isoseq_scripts"]
+	path = isoseq_scripts
+	url = https://github.com/fayerodgers/isoseq_scripts
