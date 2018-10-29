@@ -52,3 +52,5 @@ foreach my $gene (keys %{$genes}){
 	}
 }
 
+close MASTER;
+
