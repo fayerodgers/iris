@@ -3,7 +3,7 @@ package Apollo_fr;
 use warnings;
 use strict;
 use base 'Exporter';
-our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data allocate_tokens retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens retrieve_genes delete_all_features);
+our @EXPORT = qw(parse_gff validate_intron_boundaries validate_coverage validate_cds validate_peptide connect_to_iris_database prepare_sql_statements retrieve_all_users_from_db retrieve_token_data retrieve_token_data_v2 allocate_tokens allocate_tokens_v2 retrieve_validated_transcripts dump_FASTAs retrieve_orphan_transcripts retrieve_collapsed_transcripts compare_transcripts reconcile_utrs assign_transcripts_to_genes apollo_dump delete_feature add_users_to_iris_tokens retrieve_genes delete_all_features);
 use Data::Dumper;
 use DBI;
 use DBD::mysql;
@@ -364,19 +364,37 @@ sub add_users_to_iris_tokens{
 ######################################
 sub retrieve_token_data{
 	my $dbh = shift;
-	my $sth = $dbh->prepare('SELECT tokens.token_id, tokens.score, allocated_tokens.avatar FROM tokens LEFT JOIN allocated_tokens ON tokens.token_id = allocated_tokens.token_id');
+	my $sth = $dbh->prepare('SELECT tokens.token_id, tokens.aggregate_score, allocated_tokens.avatar FROM tokens LEFT JOIN allocated_tokens ON tokens.token_id = allocated_tokens.token_id');
 	$sth->execute();
 	my %tokens;
 	while (my @tokens_db = $sth->fetchrow_array){
-		if ( $tokens_db[1] > 100){
-			if (defined $tokens_db[2]){
-				$tokens{$tokens_db[0]}++;
-			}
-			else{$tokens{$tokens_db[0]} =0; }
+		if (defined $tokens_db[2]){
+			$tokens{$tokens_db[0]}++;
 		}
+		else{$tokens{$tokens_db[0]} =0; }
 	}
 	return \%tokens;
 }
+
+######################################
+sub retrieve_token_data_v2{
+	my $dbh = shift;
+	my $sth = $dbh->prepare('SELECT aggregate_score, token_id, isoseq_score, iris_score FROM tokens');
+	$sth->execute();
+	my %tokens;
+	while (my @tokens_db = $sth->fetchrow_array){
+		$tokens{'aggregate_score'}{$tokens_db[1]}=$tokens_db[0];
+		if ($tokens_db[3] == 0){
+			$tokens{'iso_score'}{$tokens_db[1]}=$tokens_db[2];
+		}
+		else{
+			$tokens{'iso_score'}{$tokens_db[1]}=0;
+		}
+	}
+	return \%tokens;	
+}
+
+
 
 #######################################
 sub retrieve_collapsed_transcripts{
@@ -554,6 +572,7 @@ sub assign_transcripts_to_genes{
 }
 
 
+
 #########################################
 #ensures that all students have 10 tokens
 sub allocate_tokens{
@@ -617,6 +636,40 @@ sub allocate_tokens{
 		}
 	}
 }
+
+###########################################
+sub allocate_tokens_v2{
+	my ($sth_allocate_tokens, $users, $tokens, $date, $format) = @_;
+        my %users = %$users;
+        my %tokens = %$tokens;
+	my @tokens;
+	if ($format eq 'aggregate'){
+		@tokens = sort { $tokens{'aggregate_score'}{$b} <=> $tokens{'aggregate_score'}{$a} } (keys %{$tokens{'aggregate_score'}});
+	}
+	elsif ($format eq 'iso'){
+		@tokens = sort { $tokens{'iso_score'}{$b} <=> $tokens{'iso_score'}{$a} } (keys %{$tokens{'iso_score'}});	
+	}
+	print join("\n",@tokens);
+	#print scalar(@tokens);
+	foreach my $student (keys %users){
+		while (scalar keys %{$users{$student}{'current_tokens'}} < 10){
+			print $student, "\n";
+			foreach my $i (0..scalar @tokens){
+				my $token  = $tokens[$i];
+				print $token, "\n";
+				if (exists $users{$student}{'all_tokens'}{$token}){
+					next;
+				}
+				$users{$student}{'current_tokens'}{$token} = ();
+				$sth_allocate_tokens->execute($token, $student, $date);
+				if (scalar keys %{$users{$student}{'current_tokens'}} == 10){
+					last;
+				}
+			}
+		}
+	}
+}
+
 
 ###########################################
 sub apollo_dump{
