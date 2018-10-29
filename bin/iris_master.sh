@@ -50,3 +50,12 @@ $IRIS_HOME/iris/bin/process_annotations.pl --user_list $USERS --annotations_path
 
 #back up the annotations database
 mysqldump -h mysql-wormbase-pipelines -P 4331 -u wormadmin -p$MYSQL_PASS iris_genes > $ANNOTATIONS_DIR_PATH/$DATE/iris_genes.bak
+
+#dump a master GFF
+$IRIS_HOME/iris/bin/write_gff.pl --mysql_pword $MYSQL_PASS --output_directory $ANNOTATIONS_DIR_PATH/$DATE
+
+#recalculate the scores
+python $IRIS_HOME/iris/bin/calculate_scores.py --iris $ANNOTATIONS_DIR_PATH/$DATE/master.gff
+
+#aggregate the scores
+python $IRIS_HOME/iris/bin/aggregate_scores.py
