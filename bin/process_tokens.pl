@@ -58,7 +58,11 @@ while(<USERS>){
 foreach my $user (keys %all_users){
 	my $organism = join "",'trichuris_trichiura_', $user;
 	unless (-f $annotations_path.'/'.$date.'/'.$organism.'.gff'){
-		apollo_dump($organism,$apollo_pword,'gff',$annotations_path,$date);
+		my $response=apollo_dump($organism,$apollo_pword,'gff',$annotations_path,$date);
+		unless ($response -> {'success'}){
+			print "failed!\n";
+			delete $all_users{$user};
+		}
 		sleep(5);
 	}
 }

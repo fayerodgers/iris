@@ -286,12 +286,14 @@ sub dump_FASTAs{
 			}
 		}
 		unless (-f $annotations_path.'/'.$date.'/'.$organism.'.cds.fasta'){
-     			apollo_dump($organism, $apollo_pword, 'cds.fasta', $annotations_path, $date);
+     			my $response = apollo_dump($organism, $apollo_pword, 'cds.fasta', $annotations_path, $date);
+			die "Apollo dump failed" unless $response->{'success'};
 			sleep(5);
 		}
                 unless (-f $annotations_path.'/'.$date.'/'.$organism.'.peptide.fasta'){
-                        apollo_dump($organism, $apollo_pword, 'peptide.fasta', $annotations_path, $date);
-                        sleep(5);
+                        my $response = apollo_dump($organism, $apollo_pword, 'peptide.fasta', $annotations_path, $date);
+               		die "Apollo dump failed" unless $response->{'success'};	
+		        sleep(5);
 		}
 	}
 }
@@ -658,6 +660,7 @@ sub allocate_tokens_v2{
 				}
 				$users{$student}{'current_tokens'}{$token} = ();
 				$sth_allocate_tokens->execute($token, $student, $date);
+				splice(@tokens,$i,1); 
 				if (scalar keys %{$users{$student}{'current_tokens'}} == 10){
 					last;
 				}
@@ -683,12 +686,13 @@ sub apollo_dump{
         	headers => {'Content-type' => 'application/json'},
        		content => $content
 	});
-#	print Dumper \$response, "\n";
-	die "Apollo dump failed" unless $response->{'success'};
-	print STDERR "Success\n";
-	open FH, '>', $path.'/'.$date.'/'.$organism.'.'.$type;
-	print FH $response-> {'content'};
-	close FH;
+	if ($response->{'success'}){
+		print STDERR "Success\n";
+		open FH, '>', $path.'/'.$date.'/'.$organism.'.'.$type;
+		print FH $response-> {'content'};
+		close FH;
+	}
+	return $response;
 }
 
 ################################################

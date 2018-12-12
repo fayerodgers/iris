@@ -27,4 +27,5 @@ foreach my $option ($organism, $apollo_pword, $path){
 
 my $date = strftime "%F", localtime;
 unless (-d $path.'/'.$date){ system (mkdir $path.'/'.$date);}
-apollo_dump($organism,$apollo_pword,'gff',$path,$date);
+my $response = apollo_dump($organism,$apollo_pword,'gff',$path,$date);
+die "Apollo dump failed" unless $response->{'success'};
