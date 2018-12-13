@@ -95,12 +95,13 @@ sub sth_get_token_info{
 					while (my @histories = $sth_get_transcript_history->fetchrow_array){
 						my $transcript_name = $histories[0];
 						my @transcript_results = split /\./, $histories[1];
-						my @decoded_transcript_results;
+						my %decoded_transcript_results;
 						foreach my $transcript_result (@transcript_results){
 							if (exists $tests{$transcript_result}){
-                                                       		push @decoded_transcript_results, $tests{$transcript_result};
+								$decoded_transcript_results{$tests{$transcript_result}} = ();
                                                        	}
                                                	}
+						my @decoded_transcript_results=keys(%decoded_transcript_results);
 						$table_1{'DETAILS'} .= 'Transcript '.$transcript_name.' has '.join(' and ', @decoded_transcript_results).'. ';
 					}
 				}
