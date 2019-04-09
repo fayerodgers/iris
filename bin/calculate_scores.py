@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../isoseq_scripts')
+sys.path.append('/nfs/production/panda/ensemblgenomes/wormbase/projects/IRIS/iris/isoseq_scripts')
 import re
 import pprint
 import mysql.connector
@@ -49,7 +49,7 @@ features_to_score={}
 if args.transdecoder:
 	transdecoder=open(args.transdecoder,"r")
 	(transdecoder_genes,transdecoder_transcripts)=isoseq.parse_gff(transdecoder)   
-	print(json.dumps(transdecoder_genes,indent=4))
+#	print(json.dumps(transdecoder_genes,indent=4))
 	#only keep transdecoder genes if they are classed as complete
 	transdecoder=dict(transdecoder_genes)
 	for gene in transdecoder_genes:
@@ -79,13 +79,14 @@ for token in tokens:
 				tokens[token][key]+=1
 		update_score=("UPDATE tokens SET "+key+"=%s WHERE token_id=%s")
 		data=(tokens[token][key],token)
+#		print key,data
 		tokens_cursor.execute(update_score,data)
 
 tokens_cnx.commit()
 tokens_cursor.close()
 tokens_cnx.close()
 
-print(json.dumps(tokens,indent=4))
+#print(json.dumps(tokens,indent=4))
 
 
 
