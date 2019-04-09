@@ -33,9 +33,6 @@ foreach my $option ($users, $annotations_path, $apollo_pword, $mysql_pword, $dat
 	unless (defined $option){ print $usage; die; }
 }
 
-#connect to the database and prepare sth statements
-my $dbh = connect_to_iris_database('iris_tokens', $mysql_pword);
-my ($sth_allocate_tokens, $sth_reallocate_tokens, $sth_get_allocated_tokens, $sth_update_token_outcomes, $sth_update_transcript_outcomes, $sth_get_event_id)  = prepare_sql_statements($dbh, 'iris_tokens');
 
 #make a new directory to dump the data into
 my $date = strftime "%F", localtime;
@@ -53,14 +50,14 @@ while(<USERS>){
         }
         else{ die "can't parse user file"; }
 }
-
+close USERS;
 #dump GFFs
 foreach my $user (keys %all_users){
 	my $organism = join "",'trichuris_trichiura_', $user;
 	unless (-f $annotations_path.'/'.$date.'/'.$organism.'.gff'){
 		my $response=apollo_dump($organism,$apollo_pword,'gff',$annotations_path,$date);
 		unless ($response -> {'success'}){
-			print "failed!\n";
+			print STDERR "failed!\n";
 			delete $all_users{$user};
 		}
 		sleep(5);
@@ -80,6 +77,9 @@ foreach my $user (keys %all_users){
 %tokens = %$tokens;
 %transcripts = %$transcripts;
 
+#connect to the database and prepare sth statements
+my $dbh = connect_to_iris_database('iris_tokens', $mysql_pword);
+my ($sth_allocate_tokens, $sth_reallocate_tokens, $sth_get_allocated_tokens, $sth_update_token_outcomes, $sth_update_transcript_outcomes, $sth_get_event_id)  = prepare_sql_statements($dbh, 'iris_tokens');
 
 #delete tokens that have been validated or rejected previously
 #check that all returned tokens exist in allocated_tokens. Add them if not.
@@ -99,7 +99,6 @@ while (my @tokens = $sth_get_allocated_tokens->fetchrow_array){
 	}
 	else{$allocations{$tokens[0]}{'allocated'}{$tokens[1]} = ();}
 }
-#print Dumper \%allocations;
 foreach my $user (keys %tokens){
 	foreach my $unique_token_id (keys %{$tokens{$user}}){
 		my $token_id = $tokens{$user}{$unique_token_id}{'name'};
@@ -107,10 +106,12 @@ foreach my $user (keys %tokens){
 			delete $tokens{$user}{$unique_token_id}; next;
 		}
 		unless (exists $allocations{$user}{'allocated'}{$token_id}){
-			$sth_allocate_tokens->execute($token_id,$user,$date);		
+			$sth_allocate_tokens->execute($token_id,$user,$date);	
 		}
 	}
 }
+
+$dbh->disconnect;
 
 #dump CDS and peptide FASTAs for users with tokens to validate.
 my @users= keys %tokens;
@@ -156,6 +157,10 @@ foreach my $user (keys %tokens){
 	}
 }
 #print Dumper \%tokens;
+
+#redo the database connection in case of time out errors
+$dbh = connect_to_iris_database('iris_tokens', $mysql_pword);
+($sth_allocate_tokens, $sth_reallocate_tokens, $sth_get_allocated_tokens, $sth_update_token_outcomes, $sth_update_transcript_outcomes, $sth_get_event_id)  = prepare_sql_statements($dbh, 'iris_tokens');
 
 #update token outcomes
 foreach my $user (keys %tokens){
@@ -212,5 +217,6 @@ foreach my $user (keys %tokens){
 #reallocate tokens
 my $all_users= retrieve_all_users_from_db($dbh);
 my $all_tokens = retrieve_token_data_v2($dbh);
-allocate_tokens_v2($sth_allocate_tokens, $all_users, $all_tokens, $date,'aggregate');
+allocate_tokens_v2($sth_allocate_tokens, $all_users, $all_tokens, $date,'aggregate',$dbh);
 
+$dbh->disconnect;
