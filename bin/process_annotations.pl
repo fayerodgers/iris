@@ -11,7 +11,6 @@ use Apollo_fr;
 
 my ($users, $annotations_path, $apollo_pword, $mysql_pword, $data_path);
 my $date = strftime "%F", localtime;
-
 my $usage = "You need to provide the following options:\n
 	--user_list - a file of user IDs to process (in the format avatar\@apollo).\n
 	--annotations_path - the path to the directory where GFFs and FASTAs should be dumped.\n
@@ -43,10 +42,6 @@ while(<USERS>){
         else{ die "can't parse user file"; }
 }
 
-#connect to the database and prepare sql statements
-my $dbh = connect_to_iris_database('iris_genes', $mysql_pword);
-my ($sth_populate_validated_transcripts, $sth_populate_validated_transcripts_cds, $sth_populate_validated_transcripts_exons, $sth_update_collapsed_ids, $sth_create_combined_transcript, $sth_create_combined_exons, $sth_create_combined_cds) = prepare_sql_statements($dbh, 'iris_genes');
-
 
 #extract all transcripts from GFFs and database. Delete those transcripts that already exist in the database
 my (%transcripts, %tokens);
@@ -57,6 +52,10 @@ foreach my $user (keys %all_users){
 	($tokens, $transcripts) = parse_gff($user, $gff, $tokens, $transcripts);
 }
 
+#connect to the database and prepare sql statements
+my $dbh = connect_to_iris_database('iris_genes', $mysql_pword);
+my ($sth_populate_validated_transcripts, $sth_populate_validated_transcripts_cds, $sth_populate_validated_transcripts_exons, $sth_update_collapsed_ids, $sth_create_combined_transcript, $sth_create_combined_exons, $sth_create_combined_cds) = prepare_sql_statements($dbh, 'iris_genes');
+
 %transcripts = %$transcripts;
 #print Dumper \$validated_transcripts;
 my $validated_transcripts = retrieve_validated_transcripts($dbh, 'all');
@@ -65,27 +64,41 @@ foreach my $user (keys %transcripts){
 		if (exists $validated_transcripts->{$transcript}){ 
 			delete $transcripts{$user}{$transcript};
 		 }
-	if (scalar keys %{$transcripts{$user}} == 0){ delete $transcripts{$user}; }
 	}
+	if (scalar keys %{$transcripts{$user}} == 0){ delete $transcripts{$user}; }
 }
-
+$dbh->disconnect;
 
 #Validate all transcripts
 my @users= keys %transcripts;
 dump_FASTAs(\@users,\%transcripts,$apollo_pword,$annotations_path,$date);
-%transcripts = %$transcripts;
 my $introns_bed_file = $data_path.'/TTRE_all_introns.bed';
 my $illumina_coverage_file = $data_path.'/coverage_blocks.bg';
 my $isoseq_coverage_file = $data_path.'/isoseq_coverage_blocks.bg';
 foreach my $user (keys %transcripts){
+	print STDERR "Validating transcripts for $user\n";
         my $peptide_fasta = join "",$annotations_path,'/',$date,'/trichuris_trichiura_',$user,'.peptide.fasta';
-	my $cds_fasta = join "",$annotations_path,'/',$date,'/','/trichuris_trichiura_',$user,'.cds.fasta';
+	my $cds_fasta = join "",$annotations_path,'/',$date,'/trichuris_trichiura_',$user,'.cds.fasta';
         my $t = validate_intron_boundaries($transcripts{$user},$introns_bed_file);
         $t = validate_coverage($t, $illumina_coverage_file, $isoseq_coverage_file);
 	$t = validate_cds($t, $cds_fasta);
+	unless (defined $t){
+		delete $transcripts{$user};
+		next;
+	}
         $t = validate_peptide($t, $peptide_fasta);
+	unless (defined $t){
+                delete $transcripts{$user};
+                next;
+	}
         $transcripts{$user} = $t;
 }
+
+#re-doing the database connection because have had time out errors when there are a lot of FASTAs to dump
+$dbh = connect_to_iris_database('iris_genes', $mysql_pword);
+($sth_populate_validated_transcripts, $sth_populate_validated_transcripts_cds, $sth_populate_validated_transcripts_exons, $sth_update_collapsed_ids, $sth_create_combined_transcript, $sth_create_combined_exons, $sth_create_combined_cds) = prepare_sql_statements($dbh, 'iris_genes');
+
+
 #print Dumper \%transcripts;
 #Put valid transcripts into the database
 foreach my $user (keys %transcripts){
@@ -160,5 +173,5 @@ foreach my $collapsed_id (keys %{$collapsed_transcripts}){
 #Allocate transcripts to parent genes
 assign_transcripts_to_genes($collapsed_transcripts,$dbh);
 
-
+$dbh->disconnect;
 
