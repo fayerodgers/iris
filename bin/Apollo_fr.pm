@@ -15,13 +15,13 @@ use List::Util qw(min max);
 
 sub parse_gff{
 	my ($user, $gff, $tokens, $transcripts)= @_;
+	print STDERR "parsing GFF for $user\n";
 	my $valid = 0;
 	my %tokens = %$tokens;
 	my %transcripts = %$transcripts;
 	open GFF ,'<', $gff or die "failed to open $gff";
 	my %gene_data;
 	while (<GFF>){
-		
 		if (/##gff-version 3/){ $valid = 1;}
     		my @temp = split /\t/, $_;
        		if (/repeat_region/){
@@ -106,6 +106,7 @@ sub parse_gff{
 		}
 	}
 	return (\%tokens, \%transcripts);
+	close GFF;
 }
 
 ###########################################
@@ -203,7 +204,10 @@ sub validate_coverage{
 #####################################
 sub validate_cds{
 	my ($transcripts, $cds_fasta) = @_;
-	open CDS_FASTA, '<', $cds_fasta or die "can't open $cds_fasta\n";
+	unless (open CDS_FASTA, '<', $cds_fasta){
+		print STDERR "can't open $cds_fasta\n";
+		return;
+	} 
 	my %transcripts = %$transcripts; 
 	my (%cds, $transcript);
 	while (<CDS_FASTA>){
@@ -231,7 +235,10 @@ sub validate_cds{
 sub validate_peptide{
 	my ($transcripts, $peptide_fasta) = @_;
 	#print "$peptide_fasta\n";
-	open PEPTIDE_FASTA, '<', $peptide_fasta or die "can't open $peptide_fasta\n";
+	unless (open PEPTIDE_FASTA, '<', $peptide_fasta){
+		print STDERR "can't open $peptide_fasta\n";
+		return;
+	}
 	my %transcripts = %$transcripts;
 	my (%peptide, $transcript);
 	while(<PEPTIDE_FASTA>){
@@ -287,12 +294,12 @@ sub dump_FASTAs{
 		}
 		unless (-f $annotations_path.'/'.$date.'/'.$organism.'.cds.fasta'){
      			my $response = apollo_dump($organism, $apollo_pword, 'cds.fasta', $annotations_path, $date);
-			die "Apollo dump failed" unless $response->{'success'};
+			print STDERR "Apollo dump failed\n" unless $response->{'success'};
 			sleep(5);
 		}
                 unless (-f $annotations_path.'/'.$date.'/'.$organism.'.peptide.fasta'){
                         my $response = apollo_dump($organism, $apollo_pword, 'peptide.fasta', $annotations_path, $date);
-               		die "Apollo dump failed" unless $response->{'success'};	
+               		print STDERR "Apollo dump failed" unless $response->{'success'};	
 		        sleep(5);
 		}
 	}
@@ -423,7 +430,7 @@ sub retrieve_genes{
 	my %genes;
 	my $sth_all_genes = $dbh->prepare('SELECT DISTINCT parent_gene FROM combined_ids');
 	$sth_all_genes->execute();
-	my $sth = $dbh->prepare('SELECT combined_ids.collapsed_id, combined_ids.strand, combined_ids.scaffold, MIN(combined_exons.start_exon), MAX(combined_exons.stop_exon) FROM combined_ids LEFT JOIN combined_exons ON combined_ids.collapsed_id = combined_exons.collapsed_id WHERE combined_ids.parent_gene = ?');
+	my $sth = $dbh->prepare('SELECT combined_ids.collapsed_id, combined_ids.strand, combined_ids.scaffold, MIN(combined_exons.start_exon), MAX(combined_exons.stop_exon) FROM combined_ids LEFT JOIN combined_exons ON combined_ids.collapsed_id = combined_exons.collapsed_id WHERE combined_ids.parent_gene = ? group by collapsed_id');
 	while (my @db_genes = $sth_all_genes->fetchrow_array){
 		my $gene = $db_genes[0];
 		$sth->execute($gene);
@@ -435,6 +442,7 @@ sub retrieve_genes{
 			$genes{$gene}{'end'} = $db_gene_data[4];
 		}
 	}
+	print Dumper \%genes;
 	return \%genes;
 }
 
@@ -641,22 +649,40 @@ sub allocate_tokens{
 
 ###########################################
 sub allocate_tokens_v2{
-	my ($sth_allocate_tokens, $users, $tokens, $date, $format) = @_;
+	my ($sth_allocate_tokens, $users, $tokens, $date, $format, $dbh) = @_;
         my %users = %$users;
         my %tokens = %$tokens;
-	my @tokens;
+	my (@tokens, $count);
 	if ($format eq 'aggregate'){
 		@tokens = sort { $tokens{'aggregate_score'}{$b} <=> $tokens{'aggregate_score'}{$a} } (keys %{$tokens{'aggregate_score'}});
 	}
 	elsif ($format eq 'iso'){
 		@tokens = sort { $tokens{'iso_score'}{$b} <=> $tokens{'iso_score'}{$a} } (keys %{$tokens{'iso_score'}});	
 	}
+	my $sth_get_returned_count=$dbh->prepare('SELECT count(*) FROM allocated_tokens WHERE token_id = ? AND date_returned IS NOT NULL');
+	my $sth_get_school_allocations=$dbh->prepare('SELECT DISTINCT school FROM students LEFT JOIN allocated_tokens ON allocated_tokens.avatar = students.avatar WHERE allocated_tokens.token_id = ?');
 	foreach my $student (keys %users){
 		while (scalar keys %{$users{$student}{'current_tokens'}} < 10){
-			foreach my $i (0..scalar @tokens){
+			TOKEN: foreach my $i (0..scalar @tokens){
+				if ($i == scalar @tokens){		#if there are no more tokens to allocate to this student, exit (and deal with it later)
+					die "There are no more tokens to allocate to $student!";
+				}	
 				my $token  = $tokens[$i];
-				if (exists $users{$student}{'all_tokens'}{$token}){
+				$sth_get_returned_count->execute($token);
+				while (my @count = $sth_get_returned_count->fetchrow_array){ #skip tokens that have been returned more than once
+					if ($count[0] > 2){
+						splice(@tokens,$i,1);
+						next TOKEN;
+					}
+				}
+				if (exists $users{$student}{'all_tokens'}{$token}){	#skip tokens that the student has already had
 					next;
+				}
+				$sth_get_school_allocations->execute($token);
+				while (my @schools = $sth_get_school_allocations->fetchrow_array){	#skip tokens that somebody in the school has already had
+					if ($student =~ /$schools[0]/){
+						next TOKEN;
+					}
 				}
 				$users{$student}{'current_tokens'}{$token} = ();
 				$sth_allocate_tokens->execute($token, $student, $date);
@@ -692,6 +718,9 @@ sub apollo_dump{
 		print FH $response-> {'content'};
 		close FH;
 	}
+	else{
+		print Dumper \$response;
+	}
 	return $response;
 }
 
@@ -705,7 +734,7 @@ sub delete_feature{
                 headers => {'Content-type' => 'application/json'},
                 content => "{'username' : ".$username.", 'password' : ".$apollo_pword.",'features' : [{'uniquename' :".$feature." }], 'organism' : ".$organism."}"
         });
-	print Dumper \$response;
+	#print Dumper \$response;
 	die "Deletion failed" unless $response->{'success'};
 }
 
@@ -714,13 +743,15 @@ sub delete_all_features{
 	my ($organism, $apollo_pword) = @_;
 	my %options = ('timeout' => 10000);
 	my $http = HTTP::Tiny->new(%options);
-	my $username = 'admin@local.host';
-	my $server = 'http://muffin.ve3w6jjywh.us-east-1.elasticbeanstalk.com/organism/deleteOrganismFeatures';
+	my $username = 'irisadmin@local.host';
+	my $server = 'http://wp-p2m-80.ebi.ac.uk:8080/organism/deleteOrganismFeatures';
 	my $response = $http->request('POST',$server,{
 		headers => {'Content-type' => 'application/json'},
 		content => "{'username': ".$username.", 'password': ".$apollo_pword." , 'organism' : ".$organism."}"
 	});
-	print Dumper \$response;
-	die "Failed!\n" unless $response->{success};
+	unless ($response->{success}){
+		print Dumper \$response;
+		die "Failed!";
+	}
 }
 
