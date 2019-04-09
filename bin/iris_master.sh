@@ -45,7 +45,7 @@ aws s3 cp $ANNOTATIONS_DIR_PATH/$DATE/html/ s3://iris.testbucket/ --recursive --
 #back up the tokens database
 mysqldump -h mysql-wormbase-pipelines -P 4331 -u wormadmin -p$MYSQL_PASS iris_tokens > $ANNOTATIONS_DIR_PATH/$DATE/iris_tokens.bak
 
-#process annotations
+#process annotations 
 $IRIS_HOME/iris/bin/process_annotations.pl --user_list $USERS --annotations_path $ANNOTATIONS_DIR_PATH --apollo_pword $APOLLO_ADMIN_PASS --mysql_pword $MYSQL_PASS --data_path $DATA_DIR_PATH
 
 #back up the annotations database
@@ -54,8 +54,8 @@ mysqldump -h mysql-wormbase-pipelines -P 4331 -u wormadmin -p$MYSQL_PASS iris_ge
 #dump a master GFF
 $IRIS_HOME/iris/bin/write_gff.pl --mysql_pword $MYSQL_PASS --output_directory $ANNOTATIONS_DIR_PATH/$DATE
 
-#recalculate the scores
+#recalculate the token scores
 python $IRIS_HOME/iris/bin/calculate_scores.py --iris $ANNOTATIONS_DIR_PATH/$DATE/master.gff
 
-#aggregate the scores
+#aggregate the token scores
 python $IRIS_HOME/iris/bin/aggregate_scores.py
