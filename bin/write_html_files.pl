@@ -48,6 +48,7 @@ my $decode_test_results=$dbh->prepare('SELECT symbol, meaning FROM tests');
 #print Dumper (\%current_tokens);
 #print Dumper (\%tests);
 
+$dbh->disconnect;
 
 sub decode_tests{
         $decode_test_results->execute;
