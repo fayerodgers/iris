@@ -43,5 +43,5 @@ while (<USERS>){
 
 add_users_to_iris_tokens(\%users,$date,$dbh);
 my $all_tokens = retrieve_token_data_v2($dbh);
-allocate_tokens_v2($sth_allocate_tokens, \%users, $all_tokens, $date, 'iso');
+allocate_tokens_v2($sth_allocate_tokens, \%users, $all_tokens, $date, 'iso',$dbh);
 
