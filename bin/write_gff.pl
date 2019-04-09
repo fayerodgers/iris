@@ -2,6 +2,8 @@
 use warnings;
 use strict;
 use Data::Dumper;
+use FindBin qw($Bin);
+use lib "$Bin";
 use Apollo_fr;
 use List::Util qw(min max);
 use Getopt::Long;
@@ -22,6 +24,7 @@ my $dbh = connect_to_iris_database('iris_genes',$mysql_pword);
 #retrieve collapsed transcripts
 my $collapsed_transcripts = retrieve_collapsed_transcripts($dbh);
 my $genes = retrieve_genes($dbh);
+$dbh->disconnect;
 
 #print GFF
 open MASTER, '>', $output_dir.'/master.gff';
