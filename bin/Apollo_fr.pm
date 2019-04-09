@@ -442,7 +442,7 @@ sub retrieve_genes{
 			$genes{$gene}{'end'} = $db_gene_data[4];
 		}
 	}
-	print Dumper \%genes;
+#	print Dumper \%genes;
 	return \%genes;
 }
 
