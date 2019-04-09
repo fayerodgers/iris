@@ -1,6 +1,6 @@
 from __future__ import division
 import sys
-sys.path.append('../isoseq_scripts')
+sys.path.append('/nfs/production/panda/ensemblgenomes/wormbase/projects/IRIS/iris/isoseq_scripts')
 import re
 import pprint
 import mysql.connector
