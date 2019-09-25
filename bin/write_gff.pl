@@ -46,11 +46,10 @@ foreach my $gene (keys %{$genes}){
                 	print MASTER "$scaffold\tiris\texon\t$exon\t$end_coord\t.\t$strand\t.\tID=$transcript.exon$i;Parent=$transcript;\n";
                 	$i++;
        		}
-        	$i = 1;
         	foreach my $cds (keys %{$collapsed_transcripts->{$transcript}{'cds_coords'}}){
                 	my $end_coord = $collapsed_transcripts->{$transcript}{'cds_coords'}{$cds};
-                	print MASTER "$scaffold\tiris\tcds\t$cds\t$end_coord\t.\t$strand\t.\tID=$transcript.cds$i;Parent=$transcript;\n";
-                	$i++;
+			my $frame = $collapsed_transcripts->{$transcript}{'cds_frame'}{$cds};
+                	print MASTER "$scaffold\tiris\tCDS\t$cds\t$end_coord\t.\t$strand\t$frame\tID=$transcript.cds;Parent=$transcript;\n";
         	}
 	}
 }
